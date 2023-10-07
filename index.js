@@ -1,7 +1,10 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { PDFDocument } = require('pdf-lib');
-
+const url = require('url');
+const path = require('path');
+const args = process.argv;
+console.log(args);
 (async () => {
   const browser = await puppeteer.launch({
     headless: true, // Set to true for headless mode
@@ -19,15 +22,44 @@ const { PDFDocument } = require('pdf-lib');
 
   // Define a list of URLs you want to capture screenshots of
   const urls = [
+    'https://lusa-lillymedinfo-jp-stg.herokuapp.com/ja-jp/medical-education/neuroscience/alzheimers-disease',
     'https://www.lillymedical.jp/ja-jp/cyramza',
-    'https://www.lillymedical.jp/ja-jp/mounjaro',
-    'https://stackoverflow.com',
+    'https://www.lillymedical.jp/ja-jp/mounjaro'
   ];
   const screenshots = [];
 
   for (const url of urls) {
+    console.log(url);
+    const parsedUrl = new URL(url);
+    const urlWithoutProtocol = url.replace(/^https?:\/\//, '');
+     console.log(urlWithoutProtocol);
+  // Split the URL path by "/"
+  const formattedUrl = urlWithoutProtocol.replace(/\./g, '_');
+  console.log(formattedUrl);
+  const pathSegments = formattedUrl.split('/');
+  console.log(pathSegments);
+  // Get the last two path segments
+  const lastTwoSegments = pathSegments.slice(0,pathSegments.length-1);
+  console.log(lastTwoSegments);
+  // Join the last two segments with "\\" to create the folder name
+  const folderName = lastTwoSegments.join('\\');
+  console.log(folderName);
+    /*const urlWithoutProtocol = url.replace(/^https?:\/\//, '');
+    console.log(urlWithoutProtocol);
+    // Replace all "." with "_"
+    const formattedUrl = urlWithoutProtocol.replace(/\./g, '_');
+    console.log(formattedUrl);
+    // Replace "/" with "\\"
+    const transformedUrl = formattedUrl.replace(/\//g, '\\');
+    console.log(transformedUrl);*/
+    const folderPath = path.join(__dirname, folderName);
+    console.log(folderPath);
+    // Create the directory (folder) with the specified name
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath);
+    }
     await page.goto(url);
-
+    await page.waitForSelector('.lds-side-nav-menu-container', { timeout: 10000 });
     // Wait for the page to load (you can adjust the timeout as needed)
     await page.waitForTimeout(5000);
 
@@ -44,7 +76,12 @@ const { PDFDocument } = require('pdf-lib');
 
     // Capture a full-page screenshot
     // await page.setViewport({ width: 1920, height: 2000 });
-    await page.setViewport({ width: 1280, height: 2000 });
+    const bodyHandle = await page.$('body');
+    const { height } = await bodyHandle.boundingBox();
+    console.log(height);
+    const validViewportHeight = Math.round(height)+1;
+    console.log(validViewportHeight);
+    await page.setViewport({ width: 1280, height: validViewportHeight });
     const screenshotName = `${url.replace(/https?:\/\//, '').replace(/\./g, '_')}_fullpage.png`;
     await page.screenshot({ path: screenshotName, fullPage: true });
 
