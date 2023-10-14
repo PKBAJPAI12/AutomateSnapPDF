@@ -56,7 +56,11 @@ async function screenshotsCapture(urls,screenUserAgent){
           await page.waitForSelector('.lds-side-nav-menu-container', { timeout: 10000 });
           // Wait for the page to load (you can adjust the timeout as needed)
           await page.waitForTimeout(5000);
-      
+          const acceptCookie=await page.$('#accept-new');
+          if(acceptCookie){
+            await acceptCookie.click();
+            await page.waitForTimeout(4000);
+          }
           // Evaluate JavaScript in the page to hide specific elements (e.g., popups)
           await page.evaluate(() => {
             // Replace the following code with the selector(s) for the element(s) you want to hide
