@@ -21,7 +21,7 @@ async function screenshotsCapture(urls,screenUserAgent){
           'https://www.lillymedical.jp/ja-jp/mounjaro'
         ];*/
         const screenshots = [];
-      
+      let disable=false;
         for (const url of urls) {
           console.log(url);
           const parsedUrl = new URL(url);
@@ -60,6 +60,12 @@ async function screenshotsCapture(urls,screenUserAgent){
           if(acceptCookie){
             await acceptCookie.click();
             await page.waitForTimeout(4000);
+          }
+          if(!disable){
+            console.log("run");
+            await page.click('button.lds-button-base.lds-button');
+            await page.waitForTimeout(2000);
+            disable=true;
           }
           // Evaluate JavaScript in the page to hide specific elements (e.g., popups)
           await page.evaluate(() => {
