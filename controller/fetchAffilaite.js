@@ -10,6 +10,9 @@ console.log(parsedUrl.pathname);
   if(parsedUrl.pathname=="/ja-jp"){
     const affiUrl=`${parsedUrl.origin}${parsedUrl.pathname}`;
     findPages(affiUrl,'ja-jp',screentype);
+  }else if(parsedUrl.pathname=="/es-es"){
+    const affiUrl=`${parsedUrl.origin}${parsedUrl.pathname}`;
+    findPages(affiUrl,'es-es',screentype);
   }
 }
 module.exports=fetchAffilaite;
