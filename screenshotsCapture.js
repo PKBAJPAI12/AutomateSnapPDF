@@ -11,6 +11,8 @@ const modalHandler=require("./controller/eventHandlerMethods/modalHandler");
 const takeScreenshotsOfLinks = require("./controller/eventHandlerMethods/takeScreenshotsOfLinks");
 const dropdownHandler = require("./controller/eventHandlerMethods/dropdownHandler");
 const deviceHandler = require("./controller/utility/deviceHandler");
+/*const directoryHandler = require(path.join(__dirname, "../utility/directoryHandler"));
+const takeScreenshot = require(path.join(__dirname, "../methods/takeScreenshot"));*/
 const directoryHandler = require("./controller/utility/directoryHandler");
 const takeScreenshot = require("./controller/methods/takeScreenshot");
 const convertPDF = require("./controller/methods/convertPDF");
@@ -27,28 +29,35 @@ async function screenshotsCapture(urls, screenUserAgent) {
       const parsedUrl = new URL(url);
       console.log(parsedUrl);
       await deviceHandler(page, screenUserAgent);
-      await directoryHandler(url);
+      let directoryName=await directoryHandler(url);
+      const urlParts = url.split('/');
+      const lastSegment = urlParts[urlParts.length - 1];
+      console.log(url);
       await page.goto(url);
       await page.waitForSelector(".lds-side-nav-menu-container", {
         timeout: 10000,
       });
+      console.log("run1");
       await page.waitForTimeout(5000);
       let linksArray = [];
+      console.log("run2");
       console.log(linksArray);
       if (url.includes("ja-jp")) {
         const modalButtonSelector = ".lds-interstitial .lds-button";
         await modalHandler(page,modalButtonSelector,disable);
         console.log("waitend");
-        await handleAccordions(page);
+        await handleAccordions(page, linksArray);
         console.log(linksArray);
         await page.waitForTimeout(2000);
-        const screenshotName = `${url
-          .replace(/https?:\/\//, "")
-          .replace(/\./g, "_")}_fullpage.png`;
+        //console.log(directoryName);
+        const screenshotName = path.join(directoryName,`${lastSegment}_fullpage.png`);
+        console.log(screenshotName);
+        console.log(screenshots);
         await takeScreenshot(page, screenshotName, screenshots);
         if (linksArray.length > 0) {
           console.log("links");
           await takeScreenshotsOfLinks(linksArray, page, screenshots);
+          console.log("wordk");
         } else {
           console.log("linksArray is Empty");
         }
@@ -66,15 +75,14 @@ async function screenshotsCapture(urls, screenUserAgent) {
           const selectId="#lds-select-field-selected-products";
           const childsId=".lds-select-field-dropdown .lds-select-field-option.child";
           const dropdownId=".lds-select-field-dropdown";
-          await dropdownHandler(page, url, screenshots,selectId,childsId,dropdownId);
+          await dropdownHandler(page,directoryName, lastSegment, screenshots,selectId,childsId,dropdownId);
         }
-        const screenshotName = `${url
-          .replace(/https?:\/\//, "")
-          .replace(/\./g, "_")}_fullpage.png`;
+        const screenshotName = path.join(directoryName,`${lastSegment}_fullpage.png`);
+          console.log(screenshotName);
         await takeScreenshot(page, screenshotName, screenshots);
         if (linksArray.length > 0) {
           console.log("links");
-          await takeScreenshotsOfLinks(linksArray, page, screenshots);
+          await takeScreenshotsOfLinks(directoryName,linksArray, page, screenshots);
         }
       }
     }
@@ -82,7 +90,7 @@ async function screenshotsCapture(urls, screenUserAgent) {
     await convertPDF(screenshots, page);
     await removeScreenshots(screenshots);
   }catch(err){
-    console.log("error");
+    console.log("errorwork");
   }
 }
 

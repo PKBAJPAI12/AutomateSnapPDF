@@ -10,8 +10,10 @@ async function directoryHandler(url) {
   const lastTwoSegments = pathSegments.slice(0, pathSegments.length - 1);
   const folderName = lastTwoSegments.join("\\");
   const folderPath = path.join(__dirname, folderName);
+  console.log(folderPath);
   if (!fs.existsSync(folderPath)) {
     fs.mkdirSync(folderPath, { recursive: true });
   }
+  return folderPath;
 }
 module.exports=directoryHandler;

@@ -4,7 +4,8 @@ const { PDFDocument } = require("pdf-lib");
 const url = require("url");
 const path = require("path");
 const takeScreenshot=require("../methods/takeScreenshot");
-async function dropdownHandler(page,url,screenshots,selectId,childsId,dropdownId){
+const directoryHandler=require("../utility/directoryHandler");
+async function dropdownHandler(page,directoryName,lastSegment,screenshots,selectId,childsId,dropdownId){
     const dropdownSelector = await page.$(selectId);
       if (dropdownSelector) {
         console.log("true");
@@ -21,16 +22,16 @@ async function dropdownHandler(page,url,screenshots,selectId,childsId,dropdownId
               if (products.length < productPerPage * (pageno - 1)) {
                 shouldScroll = false;
               }
-                const screenshotName = `${url.replace(/https?:\/\//, "").replace(/\./g, "_")}${pageno}_fullpage.png`;
+                const screenshotName = path.join(directoryName,`${lastSegment}${pageno}_fullpage.png`);
                 await takeScreenshot(page,screenshotName,screenshots);
-                await page.evaluate((dropdownId) => {
-                  const dropdown = document.querySelector(dropdownId);
+                await page.evaluate((dropdownIds) => {
+                  const dropdown = document.querySelector(dropdownIds);
                   //console.log("in");
                   if(dropdown){
                     //console.log("drop");
                     dropdown.scrollTop += dropdown.clientHeight;
                   }
-                });
+                },dropdownId);
                 await page.waitForTimeout(2000);
                 pageno++;
               }

@@ -7,10 +7,15 @@ const directoryHandler=require("../utility/directoryHandler");
 const takeScreenshot=require("../methods/takeScreenshot");
 async function takeScreenshotsOfLinks(linksArray, page,screenshots) {
     for (const url of linksArray) {
-      await directoryHandler(url);
+      const urlParts = url.split('/');
+      const lastSegment = urlParts[urlParts.length - 1];
+      console.log("url");
+      let directoryName=await directoryHandler(url);
+      console.log(url);
       await page.goto(url);
-      const screenshotName = `${url.replace(/https?:\/\//, "").replace(/\./g, "_")}.png`;
+      const screenshotName = path.join(directoryName,`${lastSegment}_fullpage.png`);
+      console.log(screenshotName);
       await takeScreenshot(page,screenshotName,screenshots);
     }
   }
-  module.exports=takeScreenshotsOfLinks;
+module.exports=takeScreenshotsOfLinks;
