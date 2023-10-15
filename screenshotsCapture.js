@@ -13,21 +13,30 @@ async function cookieHandler(page) {
     console.log("Cookie policy button not found.");
   }
 }
-async function handleAccordions(page) {
+async function handleAccordions(page,linksArray) {
   // Define your accordion selector
   const accordionSelector = ".lds-accordion";
   const accordions = await page.$$(accordionSelector);
-
   for (let i = 0; i < accordions.length; i++) {
     try {
       await accordions[i].click();
       // Wait for the content associated with the accordion to expand
       await page.waitForTimeout(2000); // Adjust the waiting time as needed
+      const accordionLinks = await page.$$eval('.lds-accordion-panel-body a', (anchors) =>
+      anchors.map((a) => a.href)
+    );
+
+    // Add links to the linksArray
+    if(i==0){
+      linksArray.push(...accordionLinks);
+    }
+    //console.log(linksArray);
       console.log(`Clicked and expanded accordion ${i}`);
     } catch (error) {
       console.error(`Error handling accordion ${i}: ${error}`);
     }
   }
+  //console.log(linksArray);
 }
 async function countryHandler(page) {
   const countrySelector = await page.$(
@@ -52,8 +61,28 @@ async function navbarDropdown(page) {
       dropdownOpen.style.height = "auto";
       dropdownOpen.style.display = "block";
     });
+    await page.waitForTimeout(2000);
   }else{
     console.log("contact navbar not available");
+  }
+}
+async function takeScreenshotsOfLinks(linksArray, page,screenshots) {
+  for (const url of linksArray) {
+    const urlWithoutProtocol = url.replace(/^https?:\/\//, "");
+      const formattedUrl = urlWithoutProtocol.replace(/\./g, "_");
+      const pathSegments = formattedUrl.split("/");
+      const lastTwoSegments = pathSegments.slice(0, pathSegments.length - 1);
+      const folderName = lastTwoSegments.join("\\");
+      const folderPath = path.join(__dirname, folderName);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+    await page.goto(url);
+    // Capture a screenshot of the linked page
+    const screenshotName = `${url.replace(/https?:\/\//, "").replace(/\./g, "_")}.png`;
+    await page.screenshot({ path: screenshotName,fullPage:true });
+    console.log(`Screenshot saved as ${screenshotName}`);
+    screenshots.push(screenshotName);
   }
 }
 async function screenshotsCapture(urls, screenUserAgent) {
@@ -93,19 +122,23 @@ async function screenshotsCapture(urls, screenUserAgent) {
         timeout: 10000,
       });
       await page.waitForTimeout(5000);
+      let linksArray=[];
+      console.log(linksArray);
       if(url.includes('ja-jp')){
-        const modalButton=await page.$("button.lds-button-base.lds-button");
-        if (modalButton) {
+        const modalButton=await page.$(".lds-interstitial .lds-button");
+        if (!disable && modalButton) {
           console.log("run");
           
-          await page.click("button.lds-button-base.lds-button");
+          await page.click(".lds-interstitial .lds-button");
           console.log("wait");
           await page.waitForTimeout(2000);
-          //disable = true;
+          disable = true;
         }else{
           console.log("modal is not open")
         }
 console.log("waitend");
+        await handleAccordions(page);
+        await page.waitForTimeout(2000);
         const screenshotName = `${url.replace(/https?:\/\//, "").replace(/\./g, "_")}_fullpage.png`;
         await page.screenshot({ path: screenshotName, fullPage: true });
   
@@ -119,8 +152,11 @@ console.log("waitend");
           await page.click("button.lds-button-base.lds-button");
           await page.waitForTimeout(2000);
           disable = true;
+        }else{
+          console.log("modal is not open")
         }
-        await handleAccordions(page);
+        await handleAccordions(page,linksArray);
+        console.log(linksArray);
         await navbarDropdown(page);
         await countryHandler(page);
         await page.waitForTimeout(1000);
@@ -131,7 +167,7 @@ console.log("waitend");
           console.log("true");
           try {
             await dropdownSelector.click();
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(2000);
             if(!screenUserAgent.isMobile){
               const productPerPage = 5;
               let pageno = 1;
@@ -161,7 +197,7 @@ console.log("waitend");
                       dropdown.scrollTop += dropdown.clientHeight;
                     }
                   });
-                  await page.waitForTimeout(1000);
+                  await page.waitForTimeout(2000);
                   pageno++;
                 }
             }
@@ -180,6 +216,10 @@ console.log("waitend");
         console.log(`Full-page mobile screenshot saved as ${screenshotName}`);
   
         screenshots.push(screenshotName);
+        if(linksArray.length>0){
+          console.log("links");
+          await takeScreenshotsOfLinks(linksArray, page,screenshots);
+        }
       }
     }
     await browser.close();
