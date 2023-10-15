@@ -6,7 +6,7 @@ const path = require('path');
 const fetchAffilaite=require('./controller/fetchAffilaite');
 const args = process.argv.slice(2);
 console.log(args);
-const urlName = args[0]; // The URL you want to capture
+const urlName = args[0]; 
 const screentype = args[1];
 console.log(screentype);
   if (urlName.length === 0) {

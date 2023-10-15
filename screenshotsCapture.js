@@ -3,90 +3,20 @@ const fs = require("fs");
 const { PDFDocument } = require("pdf-lib");
 const url = require("url");
 const path = require("path");
-async function cookieHandler(page) {
-  const acceptCookie = await page.$("#accept-new");
-  if (acceptCookie) {
-      await acceptCookie.click();
-      await page.waitForTimeout(2000);
-      console.log("Accepted cookie policy");
-  } else {
-    console.log("Cookie policy button not found.");
-  }
-}
-async function handleAccordions(page,linksArray) {
-  // Define your accordion selector
-  const accordionSelector = ".lds-accordion";
-  const accordions = await page.$$(accordionSelector);
-  for (let i = 0; i < accordions.length; i++) {
-    try {
-      await accordions[i].click();
-      // Wait for the content associated with the accordion to expand
-      await page.waitForTimeout(2000); // Adjust the waiting time as needed
-      const accordionLinks = await page.$$eval('.lds-accordion-panel-body a', (anchors) =>
-      anchors.map((a) => a.href)
-    );
-
-    // Add links to the linksArray
-    if(i==0){
-      linksArray.push(...accordionLinks);
-    }
-    //console.log(linksArray);
-      console.log(`Clicked and expanded accordion ${i}`);
-    } catch (error) {
-      console.error(`Error handling accordion ${i}: ${error}`);
-    }
-  }
-  //console.log(linksArray);
-}
-async function countryHandler(page) {
-  const countrySelector = await page.$(
-    "#lds-select-field-selected-countrySelector"
-  );
-  if (countrySelector) {
-      await countrySelector.click();
-      await page.waitForTimeout(2000);
-      console.log("Clicked countrySelector");
-  } else {
-    console.log("CountrySelector button not found.");
-  }
-}
-async function navbarDropdown(page) {
-  const dropdownColorExists = await page.$(".lds-side-nav-contact-lilly");
-  const dropdownOpenExists = await page.$(".lds-contact-lilly-dropdown");
-  if(dropdownColorExists && dropdownOpenExists){
-    await page.evaluate(() => {
-      const dropdownColor = document.querySelector(".lds-side-nav-contact-lilly");
-      const dropdownOpen = document.querySelector(".lds-contact-lilly-dropdown");
-      dropdownColor.style.backgroundColor = "#f5f5f5";
-      dropdownOpen.style.height = "auto";
-      dropdownOpen.style.display = "block";
-    });
-    await page.waitForTimeout(2000);
-  }else{
-    console.log("contact navbar not available");
-  }
-}
-async function takeScreenshotsOfLinks(linksArray, page,screenshots) {
-  for (const url of linksArray) {
-    const urlWithoutProtocol = url.replace(/^https?:\/\//, "");
-      const formattedUrl = urlWithoutProtocol.replace(/\./g, "_");
-      const pathSegments = formattedUrl.split("/");
-      const lastTwoSegments = pathSegments.slice(0, pathSegments.length - 1);
-      const folderName = lastTwoSegments.join("\\");
-      const folderPath = path.join(__dirname, folderName);
-      if (!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true });
-      }
-    await page.goto(url);
-    // Capture a screenshot of the linked page
-    const screenshotName = `${url.replace(/https?:\/\//, "").replace(/\./g, "_")}.png`;
-    await page.screenshot({ path: screenshotName,fullPage:true });
-    console.log(`Screenshot saved as ${screenshotName}`);
-    screenshots.push(screenshotName);
-  }
-}
+const cookieHandler = require("./controller/eventHandlerMethods/cookieHandler");
+const handleAccordions = require("./controller/eventHandlerMethods/handleAccordions");
+const countryHandler = require("./controller/eventHandlerMethods/countryHandler");
+const navbarDropdown = require("./controller/eventHandlerMethods/navbarDropdown");
+const modalHandler=require("./controller/eventHandlerMethods/modalHandler");
+const takeScreenshotsOfLinks = require("./controller/eventHandlerMethods/takeScreenshotsOfLinks");
+const dropdownHandler = require("./controller/eventHandlerMethods/dropdownHandler");
+const deviceHandler = require("./controller/utility/deviceHandler");
+const directoryHandler = require("./controller/utility/directoryHandler");
+const takeScreenshot = require("./controller/methods/takeScreenshot");
+const convertPDF = require("./controller/methods/convertPDF");
+const removeScreenshots = require("./controller/methods/removeScreenshots");
 async function screenshotsCapture(urls, screenUserAgent) {
-  (async () => {
+  try{
     const browser = await puppeteer.launch({
       headless: true,
     });
@@ -96,163 +26,64 @@ async function screenshotsCapture(urls, screenUserAgent) {
     for (const url of urls) {
       const parsedUrl = new URL(url);
       console.log(parsedUrl);
-      const bodyHandle = await page.$("body");
-      await page.waitForTimeout(1000);
-      const { height } = await bodyHandle.boundingBox();
-      const validViewportHeight = Math.round(height) + 1;
-      await page.emulate({
-        viewport: {
-          width: screenUserAgent.isMobile ? 375 : screenUserAgent.width,
-          height: validViewportHeight,
-          isMobile: screenUserAgent.isMobile,
-        },
-        userAgent: screenUserAgent.userAgent,
-      });
-      const urlWithoutProtocol = url.replace(/^https?:\/\//, "");
-      const formattedUrl = urlWithoutProtocol.replace(/\./g, "_");
-      const pathSegments = formattedUrl.split("/");
-      const lastTwoSegments = pathSegments.slice(0, pathSegments.length - 1);
-      const folderName = lastTwoSegments.join("\\");
-      const folderPath = path.join(__dirname, folderName);
-      if (!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true });
-      }
+      await deviceHandler(page, screenUserAgent);
+      await directoryHandler(url);
       await page.goto(url);
       await page.waitForSelector(".lds-side-nav-menu-container", {
         timeout: 10000,
       });
       await page.waitForTimeout(5000);
-      let linksArray=[];
+      let linksArray = [];
       console.log(linksArray);
-      if(url.includes('ja-jp')){
-        const modalButton=await page.$(".lds-interstitial .lds-button");
-        if (!disable && modalButton) {
-          console.log("run");
-          
-          await page.click(".lds-interstitial .lds-button");
-          console.log("wait");
-          await page.waitForTimeout(2000);
-          disable = true;
-        }else{
-          console.log("modal is not open")
-        }
-console.log("waitend");
+      if (url.includes("ja-jp")) {
+        const modalButtonSelector = ".lds-interstitial .lds-button";
+        await modalHandler(page,modalButtonSelector,disable);
+        console.log("waitend");
         await handleAccordions(page);
+        console.log(linksArray);
         await page.waitForTimeout(2000);
-        const screenshotName = `${url.replace(/https?:\/\//, "").replace(/\./g, "_")}_fullpage.png`;
-        await page.screenshot({ path: screenshotName, fullPage: true });
-  
-        console.log(`Full-page mobile screenshot saved as ${screenshotName}`);
-  
-        screenshots.push(screenshotName);
-      }else{
-        await cookieHandler(page);
-        if (!disable) {
-          console.log("run");
-          await page.click("button.lds-button-base.lds-button");
-          await page.waitForTimeout(2000);
-          disable = true;
-        }else{
-          console.log("modal is not open")
+        const screenshotName = `${url
+          .replace(/https?:\/\//, "")
+          .replace(/\./g, "_")}_fullpage.png`;
+        await takeScreenshot(page, screenshotName, screenshots);
+        if (linksArray.length > 0) {
+          console.log("links");
+          await takeScreenshotsOfLinks(linksArray, page, screenshots);
+        } else {
+          console.log("linksArray is Empty");
         }
-        await handleAccordions(page,linksArray);
+      } else {
+      const parsedUrl = new URL(url);
+        await cookieHandler(page);
+        const modalButtonSelector ="button.lds-button-base.lds-button";
+        await modalHandler(page,modalButtonSelector,disable);
+        await handleAccordions(page, linksArray);
         console.log(linksArray);
         await navbarDropdown(page);
         await countryHandler(page);
         await page.waitForTimeout(1000);
-        const dropdownSelector = await page.$(
-          "#lds-select-field-selected-products"
-        );
-        if (dropdownSelector) {
-          console.log("true");
-          try {
-            await dropdownSelector.click();
-            await page.waitForTimeout(2000);
-            if(!screenUserAgent.isMobile){
-              const productPerPage = 5;
-              let pageno = 1;
-              let shouldScroll = true;
-              while (shouldScroll) {
-               // console.log(pageno);
-                const products = await page.$$(
-                  ".lds-select-field-dropdown .lds-select-field-option.child"
-                );
-                console.log(products.length);
-                if (products.length < productPerPage * (pageno - 1)) {
-                  shouldScroll = false;
-                }
-                  const screenshotName = `${url.replace(/https?:\/\//, "").replace(/\./g, "_")}${pageno}_fullpage.png`;
-                  await page.screenshot({ path: screenshotName, fullPage: true });
-    
-                  console.log(`Full-page mobile screenshot saved as ${screenshotName}`);
-    
-                  screenshots.push(screenshotName);
-                  await page.evaluate(() => {
-                    const dropdown = document.querySelector(
-                      ".lds-select-field-dropdown"
-                    );
-                    //console.log("in");
-                    if(dropdown){
-                      //console.log("drop");
-                      dropdown.scrollTop += dropdown.clientHeight;
-                    }
-                  });
-                  await page.waitForTimeout(2000);
-                  pageno++;
-                }
-            }
-            }
-          catch(error) {
-            console.error("Error scrolling the dropdown:", error);
-          }
-        }else{
-          console.log("dropdown not available")
+        if (!screenUserAgent.isMobile) {
+          const selectId="#lds-select-field-selected-products";
+          const childsId=".lds-select-field-dropdown .lds-select-field-option.child";
+          const dropdownId=".lds-select-field-dropdown";
+          await dropdownHandler(page, url, screenshots,selectId,childsId,dropdownId);
         }
         const screenshotName = `${url
           .replace(/https?:\/\//, "")
           .replace(/\./g, "_")}_fullpage.png`;
-        await page.screenshot({ path: screenshotName, fullPage: true });
-  
-        console.log(`Full-page mobile screenshot saved as ${screenshotName}`);
-  
-        screenshots.push(screenshotName);
-        if(linksArray.length>0){
+        await takeScreenshot(page, screenshotName, screenshots);
+        if (linksArray.length > 0) {
           console.log("links");
-          await takeScreenshotsOfLinks(linksArray, page,screenshots);
+          await takeScreenshotsOfLinks(linksArray, page, screenshots);
         }
       }
     }
     await browser.close();
-    // Create a new PDF document
-    const pdfDoc = await PDFDocument.create();
-
-    // Iterate through the screenshots and add them to the PDF
-    for (const screenshot of screenshots) {
-      try {
-        const imageBytes = fs.readFileSync(screenshot);
-        const image = await pdfDoc.embedPng(imageBytes);
-        const page = pdfDoc.addPage([image.width, image.height]);
-        page.drawImage(image, {
-          x: 0,
-          y: 0,
-          width: image.width,
-          height: image.height,
-        });
-      } catch (error) {
-        console.error(`Error processing screenshot: ${error.message}`);
-      }
-    }
-
-    // Save the PDF
-    const pdfBytes = await pdfDoc.save();
-    fs.writeFileSync("screenshots.pdf", pdfBytes);
-    console.log("Mobile screenshots saved as screenshots.pdf");
-
-    // Clean up: remove individual screenshot files
-    for (const screenshot of screenshots) {
-      fs.unlinkSync(screenshot);
-    }
-  })();
+    await convertPDF(screenshots, page);
+    await removeScreenshots(screenshots);
+  }catch(err){
+    console.log("error");
+  }
 }
 
 module.exports = screenshotsCapture;
